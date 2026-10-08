@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://digno-jay.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://digno-jay-lab6.onrender.com/api';
+
+const clearStoredAuth = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user');
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -24,7 +30,9 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const authRequest = ['/login', '/refresh'].some((path) => originalRequest?.url?.includes(path));
+
+    if (error.response?.status === 401 && !originalRequest?._retry && !authRequest) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('refresh_token');
 
@@ -41,12 +49,12 @@ api.interceptors.response.use(
             return api(originalRequest);
           }
         } catch (refreshErr) {
-          // Token refresh failed, logout user
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
+          clearStoredAuth();
           window.location.reload();
         }
+      } else {
+        clearStoredAuth();
+        window.location.reload();
       }
     }
     return Promise.reject(error);
